@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ドライバー用QR作成ツール</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f7f9; padding: 20px; }
+        .container { max-width: 550px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+        
+        /* ヘッダーエリアの調整 */
+        .header-logo-area { 
+            background-color: #ffffff;
+            padding: 20px 20px;
+            margin: -30px -30px 25px -30px; 
+            text-align: center;
+            /* ★青線を太く (2px -> 5px) */
+            border-bottom: 5px solid #089cc5;
+            position: relative;
+        }
+
+        .logo-img {
+            max-width: 250px;
+            height: auto;
+            display: block;
+            margin: 0 auto 10px auto;
+        }
+
+        /* ★追加：メインタイトルのスタイル */
+        .main-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .ver-info {
+            font-size: 0.7em;
+            color: #089cc5;
+            font-weight: bold;
+            display: block;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+        input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        #preview-area { margin-top: 25px; padding: 20px; border: 2px solid #000; display: none; background: #fff; text-align: center; }
+        .header-title { font-size: 1.4em; font-weight: bold; border-bottom: 3px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
+        #qr-canvas { margin: 20px auto; display: block; }
+        .info-box { text-align: left; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; line-height: 1.8; }
+        .btn { width: 100%; padding: 16px; background: #089cc5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; margin-top: 20px; }
+        .btn:disabled { background: #d0d7de; cursor: not-allowed; }
+        #lib-status { font-size: 0.7em; text-align: right; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div id="lib-status">チェック中...</div>
+
+<div class="container">
+    <div class="header-logo-area">
+        <img src="telesa_reserve_side_blue.png" alt="telesa-reserve" class="logo-img">
+        <div class="main-title">ドライバー用QR作成ツール</div>
+        <span class="ver-info" id="display-ver"></span>
+    </div>
+    
+    <div class="form-group" style="margin-top: 20px;">
+        <label>車番 (数字4桁以内)</label>
+        <input type="text" id="car-num" placeholder="1234" maxlength="4">
+    </div>
+
+    <div class="form-group">
+        <label>携帯番号 (11桁の数字)</label>
+        <input type="tel" id="tel-num" placeholder="09012345678" maxlength="13">
+    </div>
+
+    <div class="form-group">
+        <label>任意事項 (会社名など)</label>
+        <textarea id="free-text" rows="2" maxlength="100"></textarea>
+    </div>
+
+    <div id="preview-area">
+        <div class="header-title">ドライバー情報QR</div>
+        <div id="pdf-date" style="text-align: right; font-size: 0.9em;"></div>
+        
+        <canvas id="qr-canvas"></canvas>
+        
+        <div class="info-box">
+            <div><strong>車番:</strong> <span id="view-car"></span></div>
+            <div><strong>電話:</strong> <span id="view-tel"></span></div>
+            <div><strong>備考:</strong> <span id="view-free"></span></div>
+        </div>
+    </div>
+
+    <button id="download-btn" class="btn" onclick="downloadPDF()" disabled>PDFをダウンロード</button>
+</div>
+
+<script>
+    // バージョンを3.3.0に更新
+    const APP_VERSION = "3.3.0"; 
+
+    function clean(str) {
+        if (!str) return "";
+        return str.replace(/[！-～]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)).replace(/[^0-9]/g, '');
+    }
+
+    let qr = null;
+
+    window.onload = () => {
+        qr = new QRious({
+            element: document.getElementById('qr-canvas'),
+            size: 300,
+            level: 'L'
+        });
+        
+        document.getElementById('display-ver').innerText = "v" + APP_VERSION;
+        document.getElementById('lib-status').innerText = `システム準備完了 (Ver.${APP_VERSION})：OK`;
+    };
+
+    function update() {
+        const carRaw = document.getElementById('car-num').value;
+        const telRaw = document.getElementById('tel-num').value;
+        const free = document.getElementById('free-text').value;
+
+        const car = clean(carRaw);
+        const tel = clean(telRaw);
+
+        const isCarValid = car.length > 0 && car.length <= 4;
+        const isTelValid = tel.length === 11 && /^(070|080|090)/.test(tel);
+
+        const preview = document.getElementById('preview-area');
+        const btn = document.getElementById('download-btn');
+
+        if (isCarValid && isTelValid) {
+            preview.style.display = 'block';
+            btn.disabled = false;
+
+            const qrValue = `WAI:telesa-reserve,Ver:1.0,TN:${car},MN:${tel}`;
+
+            qr.set({
+                level: 'L',
+                value: qrValue
+            });
+
+            document.getElementById('view-car').innerText = car;
+            document.getElementById('view-tel').innerText = tel;
+            document.getElementById('view-free').innerText = free || "なし";
+            document.getElementById('pdf-date').innerText = "作成日: " + new Date().toLocaleDateString('ja-JP');
+        } else {
+            preview.style.display = 'none';
+            btn.disabled = true;
+        }
+    }
+
+    document.getElementById('car-num').addEventListener('input', update);
+    document.getElementById('tel-num').addEventListener('input', update);
+    document.getElementById('free-text').addEventListener('input', update);
+
+    async function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const element = document.getElementById('preview-area');
+        const carVal = clean(document.getElementById('car-num').value);
+        const todayRaw = new Date();
+        const today = todayRaw.getFullYear() + String(todayRaw.getMonth() + 1).padStart(2, '0') + String(todayRaw.getDate()).padStart(2, '0');
+
+        qr.set({ level: 'L' });
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        try {
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+            pdf.save(`ドライバー情報QR_${carVal}_${today}.pdf`);
+        } catch (e) {
+            alert("エラーが発生しました: " + e);
+        } finally {
+            qr.set({ level: 'L' });
+        }
+    }
+</script>
+
+</body>
+</html>
