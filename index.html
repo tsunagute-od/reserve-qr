@@ -59,10 +59,9 @@
         
         .info-box { text-align: left; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; line-height: 1.8; }
         
-        /* ★追加：右下の注記文言用スタイル */
         .system-note {
             text-align: right;
-            font-size: 0.65em;
+            font-size: 0.75em;
             color: #666;
             margin-top: 15px;
         }
@@ -117,7 +116,7 @@
 </div>
 
 <script>
-    const APP_VERSION = "3.3.0"; 
+    const APP_VERSION = "3.3.1"; // スマホPDFバグ対策版
 
     function clean(str) {
         if (!str) return "";
@@ -185,25 +184,13 @@
 
         qr.set({ level: 'L' });
 
+        // 描画安定のための微小な待ち時間
         await new Promise(resolve => setTimeout(resolve, 100));
 
         try {
-            const canvas = await html2canvas(element, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-            pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
-            pdf.save(`ドライバー情報QR_${carVal}_${today}.pdf`);
-        } catch (e) {
-            alert("エラーが発生しました: " + e);
-        } finally {
-            qr.set({ level: 'L' });
-        }
-    }
-</script>
-
-</body>
-</html>
+            // ★スマホ対策：キャプチャ時にPCサイズを仮想シミュレートし、スクロール位置のバグを回避
+            const canvas = await html2canvas(element, { 
+                scale: 2,
+                scrollX: 0,
+                scrollY: -window.scrollY, // スクロールしていても一番上から綺麗に撮る
+                windowWidth: 550,          // 幅をPCサイズに固定してスマホ
