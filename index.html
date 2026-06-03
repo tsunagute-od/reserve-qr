@@ -193,4 +193,37 @@
                 scale: 2,
                 scrollX: 0,
                 scrollY: -window.scrollY, // スクロールしていても一番上から綺麗に撮る
-                windowWidth: 550,          // 幅をPCサイズに固定してスマホ
+                windowWidth: 550,          // 幅をPCサイズに固定してスマホの縮小をリセット
+                onclone: (clonedDoc) => {
+                    // クローンされた（撮影用の）要素の横幅を一時的にPC用の幅（500px）に強制固定
+                    const clonedElement = clonedDoc.getElementById('preview-area');
+                    if (clonedElement) {
+                        clonedElement.style.display = 'block';
+                        clonedElement.style.width = '500px';
+                        clonedElement.style.boxSizing = 'border-box';
+                    }
+                }
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(imgData);
+            
+            // A4用紙にバランスよく配置（左右に15mmのマージン）
+            const margin = 15;
+            const displayWidth = pdfWidth - (margin * 2);
+            const displayHeight = (imgProps.height * displayWidth) / imgProps.width;
+
+            pdf.addImage(imgData, 'PNG', margin, 15, displayWidth, displayHeight);
+            pdf.save(`ドライバー情報QR_${carVal}_${today}.pdf`);
+        } catch (e) {
+            alert("エラーが発生しました: " + e);
+        } finally {
+            qr.set({ level: 'L' });
+        }
+    }
+</script>
+
+</body>
+</html>
