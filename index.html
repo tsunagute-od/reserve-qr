@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { font-family: sans-serif; background-color: #f4f7f9; padding: 20px; }
-        .container { max-width: 550px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; }
+        .container { max-width: 550px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); overflow: hidden; box-sizing: border-box; }
         
         /* ヘッダーエリアの調整 */
         .header-logo-area { 
@@ -17,7 +17,6 @@
             padding: 20px 20px;
             margin: -30px -30px 25px -30px; 
             text-align: center;
-            /* ★青線を太く (2px -> 5px) */
             border-bottom: 5px solid #089cc5;
             position: relative;
         }
@@ -29,7 +28,6 @@
             margin: 0 auto 10px auto;
         }
 
-        /* ★追加：メインタイトルのスタイル */
         .main-title {
             font-size: 1.4em;
             font-weight: bold;
@@ -47,11 +45,29 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
         input, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        #preview-area { margin-top: 25px; padding: 20px; border: 2px solid #000; display: none; background: #fff; text-align: center; }
+        
+        /* プレビューエリア */
+        #preview-area { margin-top: 25px; padding: 20px; border: 2px solid #000; display: none; background: #fff; text-align: center; box-sizing: border-box; }
         .header-title { font-size: 1.4em; font-weight: bold; border-bottom: 3px solid #000; margin-bottom: 10px; padding-bottom: 5px; }
-        #qr-canvas { margin: 20px auto; display: block; }
+        
+        #qr-canvas { 
+            margin: 20px auto; 
+            display: block; 
+            max-width: 100%; 
+            height: auto; 
+        }
+        
         .info-box { text-align: left; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px; line-height: 1.8; }
-        .btn { width: 100%; padding: 16px; background: #089cc5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; margin-top: 20px; }
+        
+        /* ★追加：右下の注記文言用スタイル */
+        .system-note {
+            text-align: right;
+            font-size: 0.65em;
+            color: #666;
+            margin-top: 15px;
+        }
+
+        .btn { width: 100%; padding: 16px; background: #089cc5; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; margin-top: 20px; box-sizing: border-box; }
         .btn:disabled { background: #d0d7de; cursor: not-allowed; }
         #lib-status { font-size: 0.7em; text-align: right; color: #aaa; }
     </style>
@@ -92,6 +108,8 @@
             <div><strong>車番:</strong> <span id="view-car"></span></div>
             <div><strong>電話:</strong> <span id="view-tel"></span></div>
             <div><strong>備考:</strong> <span id="view-free"></span></div>
+            
+            <div class="system-note">*telesa-reserveシステムで作成したQRです</div>
         </div>
     </div>
 
@@ -99,7 +117,6 @@
 </div>
 
 <script>
-    // バージョンを3.3.0に更新
     const APP_VERSION = "3.3.0"; 
 
     function clean(str) {
